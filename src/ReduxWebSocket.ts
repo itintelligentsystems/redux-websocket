@@ -19,6 +19,8 @@ interface ReduxWebSocketOptions {
   onOpen?: (s: WebSocket) => void
 }
 
+const MAX_RECCONECTION_INCREASES = 15;
+const MAX_RECONNECTION_TICKER_VALUE = MAX_RECCONECTION_INCREASES * MAX_RECCONECTION_INCREASES;
 /**
  * ReduxWebSocket
  * @class
@@ -34,6 +36,8 @@ export default class ReduxWebSocket {
 
   // Keep track of how many times we've attempted to reconnect.
   private reconnectCount: number = 0;
+  
+  private reconnectTimer: number = 0;
 
   // We'll create an interval to try and reconnect if the socket connection breaks.
   private reconnectionInterval: NodeJS.Timeout | null = null;
@@ -104,7 +108,7 @@ export default class ReduxWebSocket {
    */
   send = (_store: MiddlewareAPI, { payload }: Action) => {
     if (this.websocket) {
-      this.websocket.send(JSON.stringify(payload));
+      this.websocket.send(payload);
     } else {
       throw new Error(
         'Socket connection not initialized. Dispatch WEBSOCKET_CONNECT first',
@@ -163,6 +167,7 @@ export default class ReduxWebSocket {
 
       this.reconnectionInterval = null;
       this.reconnectCount = 0;
+      this.reconnectTimer = 0;
 
       dispatch(reconnected(prefix));
     }
@@ -224,6 +229,7 @@ export default class ReduxWebSocket {
     dispatch(beginReconnect(prefix));
 
     this.reconnectCount = 1;
+    this.reconnectTimer = 1;
 
     dispatch(reconnectAttempt(this.reconnectCount, prefix));
 
@@ -236,6 +242,13 @@ export default class ReduxWebSocket {
 
     // Attempt reconnecting on an interval.
     this.reconnectionInterval = setInterval(() => {
+      this.reconnectTimer += 1;
+
+      if (this.reconnectTimer <= MAX_RECONNECTION_TICKER_VALUE && this.reconnectTimer / this.reconnectCount  < this.reconnectCount){
+        return;
+      }
+      
+      this.reconnectTimer = 0;
       this.reconnectCount += 1;
 
       dispatch(reconnectAttempt(this.reconnectCount, prefix));

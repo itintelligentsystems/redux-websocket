@@ -2,7 +2,7 @@
   "name": "@giantmachines/redux-websocket",
   "version": "1.1.6",
   "description": "A redux middleware to handle websocket connections",
-  "main": "dist",
+  "main": "dist/index.js",
   "files": [
     "dist/**/*"
   ],
